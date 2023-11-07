@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2023_09_12_220412) do
+ActiveRecord::Schema[7.0].define(version: 2023_10_26_152356) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "ltree"
@@ -57,9 +57,11 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_12_220412) do
   create_table "ahoy_visits", force: :cascade do |t|
     t.datetime "started_at", precision: nil
     t.bigint "user_id"
+    t.bigint "user_visit_context_id"
     t.string "visit_token"
     t.string "visitor_token"
     t.index ["user_id"], name: "index_ahoy_visits_on_user_id"
+    t.index ["user_visit_context_id"], name: "index_ahoy_visits_on_user_visit_context_id"
     t.index ["visit_token"], name: "index_ahoy_visits_on_visit_token", unique: true
   end
 
@@ -315,7 +317,6 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_12_220412) do
     t.datetime "bumped_at", precision: nil
     t.string "cached_tag_list"
     t.bigint "classified_listing_category_id"
-    t.boolean "contact_via_connect", default: false
     t.datetime "created_at", precision: nil, null: false
     t.datetime "expires_at", precision: nil
     t.string "location"
@@ -481,8 +482,10 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_12_220412) do
     t.boolean "priority", default: false
     t.text "processed_html"
     t.boolean "published", default: false
+    t.integer "render_mode", default: 0
     t.float "success_rate", default: 0.0
     t.ltree "target_geolocations", default: [], array: true
+    t.integer "template", default: 0
     t.integer "type_of", default: 0, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.float "weight", default: 1.0, null: false
@@ -625,7 +628,6 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_12_220412) do
     t.text "html"
     t.string "name"
     t.boolean "published", default: false
-    t.float "success_rate", default: 0.0
     t.string "target_tag"
     t.datetime "updated_at", precision: nil, null: false
     t.bigint "user_id"
@@ -1121,7 +1123,6 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_12_220412) do
     t.datetime "created_at", precision: nil, null: false
     t.integer "hotness_score", default: 0
     t.string "keywords_for_search"
-    t.bigint "mod_chat_channel_id"
     t.string "name"
     t.string "pretty_name"
     t.string "profile_image"
@@ -1208,6 +1209,19 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_12_220412) do
     t.index ["user_subscription_sourceable_type", "user_subscription_sourceable_id"], name: "index_on_user_subscription_sourcebable_type_and_id"
   end
 
+  create_table "user_visit_contexts", force: :cascade do |t|
+    t.text "accept_language"
+    t.datetime "created_at", null: false
+    t.string "geolocation"
+    t.datetime "last_visit_at"
+    t.datetime "updated_at", null: false
+    t.text "user_agent"
+    t.bigint "user_id", null: false
+    t.bigint "visit_count", default: 0
+    t.index ["geolocation", "user_agent", "accept_language", "user_id"], name: "index_user_visit_contexts_on_all_attributes", unique: true
+    t.index ["user_id"], name: "index_user_visit_contexts_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "apple_username"
     t.integer "articles_count", default: 0, null: false
@@ -1289,7 +1303,6 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_12_220412) do
     t.integer "unspent_credits_count", default: 0, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.string "username"
-    t.datetime "workshop_expiration", precision: nil
     t.index "to_tsvector('simple'::regconfig, COALESCE((name)::text, ''::text))", name: "index_users_on_name_as_tsvector", using: :gin
     t.index "to_tsvector('simple'::regconfig, COALESCE((username)::text, ''::text))", name: "index_users_on_username_as_tsvector", using: :gin
     t.index ["apple_username"], name: "index_users_on_apple_username"
@@ -1326,7 +1339,6 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_12_220412) do
     t.boolean "email_badge_notifications", default: true, null: false
     t.boolean "email_comment_notifications", default: true, null: false
     t.boolean "email_community_mod_newsletter", default: false, null: false
-    t.boolean "email_connect_messages", default: true, null: false
     t.boolean "email_digest_periodic", default: false, null: false
     t.boolean "email_follower_notifications", default: true, null: false
     t.boolean "email_membership_newsletter", default: false, null: false
@@ -1464,6 +1476,7 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_12_220412) do
   add_foreign_key "user_languages", "users"
   add_foreign_key "user_subscriptions", "users", column: "author_id"
   add_foreign_key "user_subscriptions", "users", column: "subscriber_id"
+  add_foreign_key "user_visit_contexts", "users"
   add_foreign_key "users_notification_settings", "users"
   add_foreign_key "users_roles", "roles", on_delete: :cascade
   add_foreign_key "users_roles", "users", on_delete: :cascade
